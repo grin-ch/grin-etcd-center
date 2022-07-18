@@ -2,7 +2,7 @@ package etcdcenter
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -23,8 +23,9 @@ func (s *EtcdBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts
 		cc:  cc,
 	}
 
-	r.search(target.Endpoint)
-	go r.watch(target.Endpoint)
+	prefix := strings.Replace(target.URL.Path, "/", "", 1)
+	r.search(prefix)
+	go r.watch(prefix)
 	return r, nil
 }
 
@@ -44,10 +45,8 @@ func (s *etcdResolver) search(prefix string) error {
 		return err
 	}
 	for _, v := range rsp.Kvs {
-		fmt.Print(v.Value, ", ")
 		s.addrs = append(s.addrs, resolver.Address{Addr: string(v.Value)})
 	}
-	fmt.Println()
 	s.cc.UpdateState(resolver.State{Addresses: s.addrs})
 	return nil
 }
@@ -57,7 +56,6 @@ func (s *etcdResolver) watch(prefix string) {
 	for ch := range wchan {
 		for _, v := range ch.Events {
 			addr := string(v.Kv.Key)
-			fmt.Printf("%s:%s\n", v.Kv.Key, v.Kv.Value)
 			switch v.Type {
 			case mvccpb.PUT:
 				if !s.existAddr(addr) {

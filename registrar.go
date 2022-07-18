@@ -3,7 +3,6 @@ package etcdcenter
 import (
 	"context"
 	"fmt"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -35,27 +34,21 @@ type EtcdRegistrar struct {
 }
 
 func (s *EtcdRegistrar) Registry() error {
-	fmt.Println("todo1...")
 	s.ctx = context.Background()
 	// 设置租约
 	resp, err := s.cli.Grant(s.ctx, s.ttl)
 	if err != nil {
 		return err
 	}
-	fmt.Println("todo2...")
 	s.leaseid = resp.ID
 	_, err = s.cli.Put(context.Background(), s.key, s.val, clientv3.WithLease(s.leaseid))
-	fmt.Println("todo3...")
 	if err != nil {
 		return err
 	}
-	fmt.Println("todo4...")
 	err = s.keepAlive()
-	fmt.Println("todo5...")
 	if err != nil {
 		return err
 	}
-	fmt.Println("ok...")
 	return nil
 }
 
@@ -66,12 +59,9 @@ func (s *EtcdRegistrar) keepAlive() error {
 		return err
 	}
 
-	// TODO
 	go func() {
-		t := time.Duration(s.ttl / 2)
 		for range rspChan {
 			for {
-				time.Sleep(time.Second * t)
 				_, err := s.cli.KeepAliveOnce(context.TODO(), s.leaseid)
 				if err != nil {
 					log.Errorf("etcd keep alive once err:%s", err)
