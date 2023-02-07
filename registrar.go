@@ -58,12 +58,15 @@ func (s *EtcdRegistrar) Registry() error {
 
 // 续约
 func (s *EtcdRegistrar) keepAlive(rspChan <-chan *clientv3.LeaseKeepAliveResponse) {
-	for range rspChan {
-		for {
-			_, err := s.cli.KeepAliveOnce(context.TODO(), s.leaseid)
-			if err != nil {
-				s.logger(err)
-				break
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.logger(fmt.Errorf("keep alive done for lease id: %d", s.leaseid))
+			return
+		case _, ok := <-rspChan:
+			if !ok {
+				s.logger(fmt.Errorf("keep alive exit, lease id: %d", s.leaseid))
+				return
 			}
 		}
 	}
